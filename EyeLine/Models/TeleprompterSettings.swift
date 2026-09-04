@@ -29,7 +29,7 @@ final class TeleprompterSettings {
 
     // Behavior
     var modeRawValue: String
-    var autoScrollSpeed: Double // lines per second, user-adjustable
+    var autoScrollSpeed: Double // points per second of scroll offset, user-adjustable
     var countdownDuration: Int // seconds
 
     init(

@@ -9,6 +9,7 @@ struct CameraRecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: RecordingViewModel
     @State private var settings: TeleprompterSettings?
+    @State private var teleprompter: TeleprompterViewModel?
 
     init(script: Script) {
         self.script = script
@@ -36,8 +37,8 @@ struct CameraRecordingView: View {
                 CameraPreviewView(camera: viewModel.camera)
                     .ignoresSafeArea()
 
-                if let settings {
-                    TeleprompterOverlayView(script: script, settings: settings)
+                if let settings, let teleprompter {
+                    TeleprompterOverlayView(script: script, settings: settings, teleprompter: teleprompter)
                 }
 
                 recordingControls
@@ -64,11 +65,26 @@ struct CameraRecordingView: View {
         }
         .statusBarHidden(isImmersiveState)
         .task {
-            settings = TeleprompterSettings.fetchOrCreate(in: modelContext)
+            let fetchedSettings = TeleprompterSettings.fetchOrCreate(in: modelContext)
+            settings = fetchedSettings
+            teleprompter = TeleprompterViewModel(settings: fetchedSettings)
             await viewModel.onAppear()
         }
         .onDisappear {
+            teleprompter?.pause()
             Task { await viewModel.onDisappear() }
+        }
+        .onChange(of: viewModel.screenState) { _, newState in
+            guard let teleprompter else { return }
+            switch newState {
+            case .recording:
+                teleprompter.play()
+            case .ready:
+                teleprompter.pause()
+                teleprompter.restart()
+            case .preparing, .permissionDenied, .countingDown, .reviewing, .saving, .saved, .error:
+                teleprompter.pause()
+            }
         }
     }
 
@@ -112,6 +128,11 @@ struct CameraRecordingView: View {
             .padding(.top, 8)
 
             Spacer()
+
+            if let teleprompter, settings?.mode == .autoScroll {
+                AutoScrollControlBar(teleprompter: teleprompter)
+                    .padding(.bottom, 20)
+            }
 
             HStack {
                 Spacer()

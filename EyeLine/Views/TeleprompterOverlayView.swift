@@ -4,14 +4,20 @@ import SwiftUI
 /// SwiftUI view only — it is never composited into the recorded video, which
 /// comes straight from AVCaptureMovieFileOutput.
 ///
-/// Milestone 1 scope: static script display, scrollable by the user, sized
-/// and positioned close to the front camera / Dynamic Island. Auto Scroll
-/// and Voice Tracking (karaoke highlighting, current-word tracking) land in
-/// later milestones and will replace the plain Text below with a windowed,
-/// highlighted rendering driven by TeleprompterViewModel.
+/// Auto Scroll (Milestone 2): the text is offset by
+/// `teleprompter.scrollOffset`, a value TeleprompterViewModel advances every
+/// frame via CADisplayLink, and clipped to the reading box. A plain
+/// SwiftUI ScrollView isn't used here because Auto Scroll needs an exact,
+/// externally-driven pixel position (for smooth constant-speed motion, live
+/// speed changes, and restart-to-top) rather than user-driven scrolling.
+///
+/// Voice Tracking (karaoke highlighting, current-word tracking) lands in
+/// Milestone 3 and will replace this plain Text with a windowed, highlighted
+/// rendering — still positioned via the same scrollOffset mechanism.
 struct TeleprompterOverlayView: View {
     let script: Script
     let settings: TeleprompterSettings
+    let teleprompter: TeleprompterViewModel
 
     var body: some View {
         // Deliberately does NOT ignore the safe area: SwiftUI automatically
@@ -23,25 +29,26 @@ struct TeleprompterOverlayView: View {
         GeometryReader { geometry in
             let height = geometry.size.height * settings.teleprompterHeightFraction
 
-            ScrollView(.vertical, showsIndicators: false) {
-                Text(script.content.isEmpty ? "Your script will appear here." : script.content)
-                    .font(.system(size: settings.fontSize, weight: fontWeight))
-                    .lineSpacing(settings.lineSpacing)
-                    .multilineTextAlignment(swiftUIAlignment)
-                    .foregroundStyle(.white.opacity(settings.textOpacity))
-                    .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
-                    .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
-                    .padding(.vertical, 8)
-            }
-            .frame(width: geometry.size.width, height: height)
-            .background(
-                LinearGradient(
-                    colors: [Color.black.opacity(0.28), Color.black.opacity(0.0)],
-                    startPoint: .top,
-                    endPoint: .bottom
+            Text(script.content.isEmpty ? "Your script will appear here." : script.content)
+                .font(.system(size: settings.fontSize, weight: fontWeight))
+                .lineSpacing(settings.lineSpacing)
+                .multilineTextAlignment(swiftUIAlignment)
+                .foregroundStyle(.white.opacity(settings.textOpacity))
+                .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+                .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .top)
+                .offset(y: -teleprompter.scrollOffset)
+                .frame(width: geometry.size.width, height: height, alignment: .top)
+                .clipped()
+                .background(
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.28), Color.black.opacity(0.0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .allowsHitTesting(false)
     }
