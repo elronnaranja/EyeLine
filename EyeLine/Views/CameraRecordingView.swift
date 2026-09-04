@@ -117,17 +117,15 @@ struct CameraRecordingView: View {
                 .padding(.leading)
 
                 Spacer()
-
-                if viewModel.isRecording {
-                    RecordingTimerBadge(text: viewModel.formattedElapsedTime)
-                }
-
-                Spacer()
-                Color.clear.frame(width: 44, height: 44)
             }
             .padding(.top, 8)
 
             Spacer()
+
+            if viewModel.isRecording {
+                RecordingTimerBadge(text: viewModel.formattedElapsedTime)
+                    .padding(.bottom, 12)
+            }
 
             if let teleprompter, settings?.mode == .autoScroll {
                 AutoScrollControlBar(teleprompter: teleprompter)

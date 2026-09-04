@@ -37,6 +37,13 @@ struct TeleprompterOverlayView: View {
                 .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
                 .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
                 .padding(.vertical, 8)
+                // Without this, the frame(height:) below would propose its
+                // small box height down to the Text and it would wrap/
+                // truncate to fit — leaving nothing extra to scroll through.
+                // This forces Text to report its full natural height instead,
+                // so there's real content beyond the box for offset+clipped
+                // to reveal as it scrolls.
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .top)
                 .offset(y: -teleprompter.scrollOffset)
                 .frame(width: geometry.size.width, height: height, alignment: .top)
