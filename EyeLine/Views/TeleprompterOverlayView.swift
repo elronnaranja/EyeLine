@@ -14,23 +14,26 @@ struct TeleprompterOverlayView: View {
     let settings: TeleprompterSettings
 
     var body: some View {
+        // Deliberately does NOT ignore the safe area: SwiftUI automatically
+        // keeps a non-ignoring view clear of the Dynamic Island / notch, so
+        // the reading position naturally starts just below it without any
+        // manual offset math (an earlier version tried to compute that
+        // offset by hand while also ignoring the safe area, which fought
+        // itself and let the island cover the first line of text).
         GeometryReader { geometry in
             let height = geometry.size.height * settings.teleprompterHeightFraction
 
-            VStack(spacing: 0) {
-                ScrollView(.vertical, showsIndicators: false) {
-                    Text(script.content.isEmpty ? "Your script will appear here." : script.content)
-                        .font(.system(size: settings.fontSize, weight: fontWeight))
-                        .lineSpacing(settings.lineSpacing)
-                        .multilineTextAlignment(swiftUIAlignment)
-                        .foregroundStyle(.white.opacity(settings.textOpacity))
-                        .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
-                        .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
-                        .padding(.vertical, 8)
-                }
-                .frame(maxWidth: .infinity)
+            ScrollView(.vertical, showsIndicators: false) {
+                Text(script.content.isEmpty ? "Your script will appear here." : script.content)
+                    .font(.system(size: settings.fontSize, weight: fontWeight))
+                    .lineSpacing(settings.lineSpacing)
+                    .multilineTextAlignment(swiftUIAlignment)
+                    .foregroundStyle(.white.opacity(settings.textOpacity))
+                    .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+                    .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
+                    .padding(.vertical, 8)
             }
-            .frame(width: geometry.size.width, height: height, alignment: .top)
+            .frame(width: geometry.size.width, height: height)
             .background(
                 LinearGradient(
                     colors: [Color.black.opacity(0.28), Color.black.opacity(0.0)],
@@ -38,7 +41,7 @@ struct TeleprompterOverlayView: View {
                     endPoint: .bottom
                 )
             )
-            .position(x: geometry.size.width / 2, y: geometry.safeAreaInsets.top + height / 2)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .allowsHitTesting(false)
     }

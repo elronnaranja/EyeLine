@@ -38,7 +38,6 @@ struct CameraRecordingView: View {
 
                 if let settings {
                     TeleprompterOverlayView(script: script, settings: settings)
-                        .ignoresSafeArea()
                 }
 
                 recordingControls
