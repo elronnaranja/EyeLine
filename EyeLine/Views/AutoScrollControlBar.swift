@@ -10,7 +10,7 @@ struct AutoScrollControlBar: View {
     @Bindable var teleprompter: TeleprompterViewModel
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 22) {
             Button {
                 teleprompter.restart()
             } label: {
@@ -21,6 +21,7 @@ struct AutoScrollControlBar: View {
                 teleprompter.togglePlayPause()
             } label: {
                 Image(systemName: teleprompter.isPlaying ? "pause.fill" : "play.fill")
+                    .frame(width: 22)
             }
 
             Button {
@@ -33,7 +34,7 @@ struct AutoScrollControlBar: View {
                 value: $teleprompter.speed,
                 in: TeleprompterViewModel.speedRange
             )
-            .frame(width: 110)
+            .frame(width: 150)
 
             Button {
                 teleprompter.increaseSpeed()
@@ -41,11 +42,11 @@ struct AutoScrollControlBar: View {
                 Image(systemName: "plus")
             }
         }
-        .font(.subheadline.weight(.semibold))
+        .font(.title2.weight(.semibold))
         .foregroundStyle(.white)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.black.opacity(0.45), in: Capsule())
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(.black.opacity(0.5), in: Capsule())
         .tint(.white)
     }
 }
