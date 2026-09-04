@@ -208,7 +208,7 @@ final class ScriptMatchingService {
     /// Lowercases and strips punctuation (including apostrophes), so
     /// "Don't" and "dont" — the kind of variation speech recognition
     /// produces — normalize identically.
-    static func normalize(_ word: Substring) -> String {
+    static func normalize(_ word: String) -> String {
         let lowered = word.lowercased()
         let filtered = lowered.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
         return String(String.UnicodeScalarView(filtered))

@@ -38,7 +38,6 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_STRICT_CONCURRENCY: complete
         CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: LZ4ZRXP48V
     dependencies: []
 
   EyeLineTests:
