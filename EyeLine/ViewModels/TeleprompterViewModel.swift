@@ -80,7 +80,9 @@ final class TeleprompterViewModel: NSObject {
         scrollOffset += CGFloat(speed * delta)
     }
 
-    deinit {
-        displayLink?.invalidate()
-    }
+    // No deinit here: `deinit` always runs outside the main-actor context,
+    // even for a @MainActor class, so it cannot touch actor-isolated
+    // properties like `displayLink`. CameraRecordingView.onDisappear already
+    // calls pause() reliably, which invalidates the link; relying on that
+    // single call site avoids the deinit isolation problem entirely.
 }
