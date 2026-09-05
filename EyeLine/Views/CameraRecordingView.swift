@@ -153,16 +153,16 @@ struct CameraRecordingView: View {
             }
             .padding(.top, 8)
 
-            if case .ready = viewModel.screenState, let settings {
-                modePicker(settings: settings)
-                    .padding(.top, 6)
-            }
-
             Spacer()
 
             if viewModel.isRecording {
                 RecordingTimerBadge(text: viewModel.formattedElapsedTime)
                     .padding(.bottom, 12)
+            }
+
+            if case .ready = viewModel.screenState, let settings {
+                modePicker(settings: settings)
+                    .padding(.bottom, 20)
             }
 
             if let teleprompter, settings?.mode == .autoScroll {
