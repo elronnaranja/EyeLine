@@ -67,22 +67,42 @@ struct CameraRecordingView: View {
         .task {
             let fetchedSettings = TeleprompterSettings.fetchOrCreate(in: modelContext)
             settings = fetchedSettings
-            teleprompter = TeleprompterViewModel(settings: fetchedSettings)
+            let vm = TeleprompterViewModel(settings: fetchedSettings)
+            vm.loadScript(script)
+            teleprompter = vm
             await viewModel.onAppear()
+            // Requested up front (alongside camera/mic) so picking Voice
+            // Tracking later doesn't pop a permission sheet mid-recording.
+            await vm.speechRecognizer.requestAuthorizationIfNeeded()
         }
         .onDisappear {
-            teleprompter?.pause()
+            if let teleprompter {
+                teleprompter.stopVoiceTracking(audioOutput: viewModel.camera.audioDataOutput)
+                teleprompter.pause()
+            }
             Task { await viewModel.onDisappear() }
         }
         .onChange(of: viewModel.screenState) { _, newState in
-            guard let teleprompter else { return }
+            guard let teleprompter, let settings else { return }
+            let audioOutput = viewModel.camera.audioDataOutput
             switch newState {
             case .recording:
-                teleprompter.play()
+                if settings.mode == .voiceTracking {
+                    Task {
+                        await teleprompter.startVoiceTracking(
+                            audioOutput: audioOutput,
+                            queue: DispatchQueue(label: "design.theorange.eyeline.speech.audio")
+                        )
+                    }
+                } else {
+                    teleprompter.play()
+                }
             case .ready:
+                teleprompter.stopVoiceTracking(audioOutput: audioOutput)
                 teleprompter.pause()
                 teleprompter.restart()
             case .preparing, .permissionDenied, .countingDown, .reviewing, .saving, .saved, .error:
+                teleprompter.stopVoiceTracking(audioOutput: audioOutput)
                 teleprompter.pause()
             }
         }
@@ -98,6 +118,19 @@ struct CameraRecordingView: View {
     private var isCountingDown: Bool {
         if case .countingDown = viewModel.screenState { return true }
         return false
+    }
+
+    private func modePicker(settings: TeleprompterSettings) -> some View {
+        Picker("Teleprompter Mode", selection: Binding(
+            get: { settings.mode },
+            set: { settings.mode = $0 }
+        )) {
+            Text("Auto Scroll").tag(TeleprompterMode.autoScroll)
+            Text("Voice Tracking").tag(TeleprompterMode.voiceTracking)
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 260)
+        .padding(.horizontal, 40)
     }
 
     @ViewBuilder
@@ -120,6 +153,11 @@ struct CameraRecordingView: View {
             }
             .padding(.top, 8)
 
+            if case .ready = viewModel.screenState, let settings {
+                modePicker(settings: settings)
+                    .padding(.top, 6)
+            }
+
             Spacer()
 
             if viewModel.isRecording {
@@ -129,6 +167,11 @@ struct CameraRecordingView: View {
 
             if let teleprompter, settings?.mode == .autoScroll {
                 AutoScrollControlBar(teleprompter: teleprompter)
+                    .padding(.bottom, 20)
+            }
+
+            if let teleprompter, settings?.mode == .voiceTracking, viewModel.isRecording {
+                VoiceTrackingStatusBadge(isListening: teleprompter.speechRecognizer.isListening)
                     .padding(.bottom, 20)
             }
 
@@ -171,6 +214,21 @@ private struct RecordButton: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isRecording)
+    }
+}
+
+private struct VoiceTrackingStatusBadge: View {
+    let isListening: Bool
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isListening ? "waveform" : "waveform.slash")
+            Text(isListening ? "Listening — swipe up/down to correct" : "Starting…")
+                .font(.footnote.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.black.opacity(0.5), in: Capsule())
     }
 }
 

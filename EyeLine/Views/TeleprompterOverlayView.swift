@@ -4,16 +4,19 @@ import SwiftUI
 /// SwiftUI view only — it is never composited into the recorded video, which
 /// comes straight from AVCaptureMovieFileOutput.
 ///
-/// Auto Scroll (Milestone 2): the text is offset by
-/// `teleprompter.scrollOffset`, a value TeleprompterViewModel advances every
-/// frame via CADisplayLink, and clipped to the reading box. A plain
-/// SwiftUI ScrollView isn't used here because Auto Scroll needs an exact,
-/// externally-driven pixel position (for smooth constant-speed motion, live
-/// speed changes, and restart-to-top) rather than user-driven scrolling.
+/// Both teleprompter modes share the same positioning mechanism: the text is
+/// offset by `teleprompter.scrollOffset` and clipped to the reading box. A
+/// plain SwiftUI ScrollView isn't used because both modes need an exact,
+/// externally-driven pixel position — constant speed for Auto Scroll, eased
+/// toward a computed target for Voice Tracking — rather than user-driven
+/// scrolling.
 ///
-/// Voice Tracking (karaoke highlighting, current-word tracking) lands in
-/// Milestone 3 and will replace this plain Text with a windowed, highlighted
-/// rendering — still positioned via the same scrollOffset mechanism.
+/// Auto Scroll renders the plain script text. Voice Tracking instead renders
+/// `teleprompter.karaokeText`, an AttributedString TeleprompterViewModel
+/// rebuilds only when the current word changes (never per-frame), with
+/// completed words dimmed and the current word highlighted. A swipe
+/// up/down, enabled only in Voice Tracking, lets the speaker manually
+/// correct their position without touching recording controls.
 struct TeleprompterOverlayView: View {
     let script: Script
     let settings: TeleprompterSettings
@@ -29,12 +32,7 @@ struct TeleprompterOverlayView: View {
         GeometryReader { geometry in
             let height = geometry.size.height * settings.teleprompterHeightFraction
 
-            Text(script.content.isEmpty ? "Your script will appear here." : script.content)
-                .font(.system(size: settings.fontSize, weight: fontWeight))
-                .lineSpacing(settings.lineSpacing)
-                .multilineTextAlignment(swiftUIAlignment)
-                .foregroundStyle(.white.opacity(settings.textOpacity))
-                .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+            textView
                 .frame(maxWidth: geometry.size.width * settings.textWidthFraction, alignment: frameAlignment)
                 .padding(.vertical, 8)
                 // Without this, the frame(height:) below would propose its
@@ -45,6 +43,15 @@ struct TeleprompterOverlayView: View {
                 // to reveal as it scrolls.
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .top)
+                .background(
+                    GeometryReader { textGeometry in
+                        Color.clear
+                            .onAppear { teleprompter.reportMeasuredTextHeight(textGeometry.size.height) }
+                            .onChange(of: textGeometry.size.height) { _, newHeight in
+                                teleprompter.reportMeasuredTextHeight(newHeight)
+                            }
+                    }
+                )
                 .offset(y: -teleprompter.scrollOffset)
                 .frame(width: geometry.size.width, height: height, alignment: .top)
                 .clipped()
@@ -56,8 +63,45 @@ struct TeleprompterOverlayView: View {
                     )
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .contentShape(Rectangle())
+                .gesture(repositionGesture) // reachable only when hit testing is enabled below
         }
-        .allowsHitTesting(false)
+        .allowsHitTesting(settings.mode == .voiceTracking)
+    }
+
+    @ViewBuilder
+    private var textView: some View {
+        switch settings.mode {
+        case .autoScroll:
+            Text(script.content.isEmpty ? "Your script will appear here." : script.content)
+                .font(.system(size: settings.fontSize, weight: fontWeight))
+                .lineSpacing(settings.lineSpacing)
+                .multilineTextAlignment(swiftUIAlignment)
+                .foregroundStyle(.white.opacity(settings.textOpacity))
+                .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+        case .voiceTracking:
+            Text(teleprompter.karaokeText)
+                .font(.system(size: settings.fontSize, weight: fontWeight))
+                .lineSpacing(settings.lineSpacing)
+                .multilineTextAlignment(swiftUIAlignment)
+                .shadow(color: .black.opacity(0.85), radius: 3, x: 0, y: 1)
+        }
+    }
+
+    /// Swipe up = move forward, swipe down = move back, roughly a phrase's
+    /// worth of words per swipe. Only active in Voice Tracking, where the
+    /// concept of "which word am I on" exists; Auto Scroll has its own
+    /// explicit restart/speed controls instead.
+    private var repositionGesture: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                let wordsPerSwipe = 6
+                if value.translation.height < -40 {
+                    teleprompter.manuallyReposition(byWords: wordsPerSwipe)
+                } else if value.translation.height > 40 {
+                    teleprompter.manuallyReposition(byWords: -wordsPerSwipe)
+                }
+            }
     }
 
     private var fontWeight: Font.Weight {
