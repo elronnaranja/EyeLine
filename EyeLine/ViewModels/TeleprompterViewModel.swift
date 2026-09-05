@@ -176,7 +176,6 @@ final class TeleprompterViewModel: NSObject {
             content: scriptContent,
             tokens: matcher.tokens,
             currentIndex: currentWordIndex,
-            fontSize: settings.fontSize,
             baseOpacity: settings.textOpacity,
             completedOpacity: settings.completedTextOpacity
         )
@@ -192,7 +191,6 @@ final class TeleprompterViewModel: NSObject {
         content: String,
         tokens: [ScriptToken],
         currentIndex: Int,
-        fontSize: Double,
         baseOpacity: Double,
         completedOpacity: Double
     ) -> AttributedString {
@@ -208,8 +206,14 @@ final class TeleprompterViewModel: NSObject {
             if token.index < currentIndex {
                 wordAttr.foregroundColor = Color.white.opacity(completedOpacity)
             } else if token.index == currentIndex {
+                // Color + underline only — NOT a font/weight change. A bold
+                // current word is wider than its regular form, so as the
+                // highlight moved from word to word the surrounding text
+                // would reflow and words would visibly jump between lines.
+                // Underline and color don't affect glyph width, so the line
+                // breaks stay fixed regardless of which word is current.
                 wordAttr.foregroundColor = Color.yellow
-                wordAttr.font = .system(size: fontSize, weight: .bold)
+                wordAttr.underlineStyle = .single
             } else {
                 wordAttr.foregroundColor = Color.white.opacity(baseOpacity)
             }
