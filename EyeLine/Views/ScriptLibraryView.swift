@@ -8,6 +8,7 @@ struct ScriptLibraryView: View {
     @State private var viewModel: ScriptLibraryViewModel?
     @State private var newlyCreatedScript: Script?
     @State private var recordingScript: Script?
+    @State private var showingSettings = false
 
     var body: some View {
         List {
@@ -44,6 +45,13 @@ struct ScriptLibraryView: View {
             ScriptEditorView(script: script, onDelete: { viewModel?.delete(script) })
         }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     guard let viewModel else { return }
@@ -58,6 +66,16 @@ struct ScriptLibraryView: View {
         }
         .fullScreenCover(item: $recordingScript) { script in
             CameraRecordingView(script: script)
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                SettingsView(settings: TeleprompterSettings.fetchOrCreate(in: modelContext))
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingSettings = false }
+                        }
+                    }
+            }
         }
         .onAppear {
             if viewModel == nil {
