@@ -199,21 +199,30 @@ final class TeleprompterViewModel: NSObject {
         var cursor = content.startIndex
 
         for token in tokens {
+            // Gap text (spaces, punctuation, line breaks) between tokens is
+            // copied verbatim but never got a color attribute, so it fell
+            // back to AttributedString's own default (black) instead of
+            // inheriting the Text view's white — periods, commas, etc. read
+            // as near-invisible dark marks. Color it to match the opacity
+            // of the word it's attached to (the token that follows it).
             if cursor < token.range.lowerBound {
-                result += AttributedString(String(content[cursor..<token.range.lowerBound]))
+                var gapAttr = AttributedString(String(content[cursor..<token.range.lowerBound]))
+                gapAttr.foregroundColor = Color.white.opacity(
+                    token.index <= currentIndex ? completedOpacity : baseOpacity
+                )
+                result += gapAttr
             }
             var wordAttr = AttributedString(String(content[token.range]))
             if token.index < currentIndex {
                 wordAttr.foregroundColor = Color.white.opacity(completedOpacity)
             } else if token.index == currentIndex {
-                // Color + underline only — NOT a font/weight change. A bold
-                // current word is wider than its regular form, so as the
-                // highlight moved from word to word the surrounding text
-                // would reflow and words would visibly jump between lines.
-                // Underline and color don't affect glyph width, so the line
-                // breaks stay fixed regardless of which word is current.
+                // Color only — NOT a font/weight change. A bold current
+                // word is wider than its regular form, so as the highlight
+                // moved from word to word the surrounding text would
+                // reflow and words would visibly jump between lines. Color
+                // alone doesn't affect glyph width, so line breaks stay
+                // fixed regardless of which word is current.
                 wordAttr.foregroundColor = Color.yellow
-                wordAttr.underlineStyle = .single
             } else {
                 wordAttr.foregroundColor = Color.white.opacity(baseOpacity)
             }
@@ -221,7 +230,9 @@ final class TeleprompterViewModel: NSObject {
             cursor = token.range.upperBound
         }
         if cursor < content.endIndex {
-            result += AttributedString(String(content[cursor..<content.endIndex]))
+            var trailingAttr = AttributedString(String(content[cursor..<content.endIndex]))
+            trailingAttr.foregroundColor = Color.white.opacity(baseOpacity)
+            result += trailingAttr
         }
         return result
     }
