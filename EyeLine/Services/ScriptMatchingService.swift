@@ -39,6 +39,7 @@ final class ScriptMatchingService {
     private let forwardWindow: Int
     private let tailWordCount: Int
     private let maxBackwardJump: Int
+    private let maxForwardJump: Int
 
     static let fillerWords: Set<String> = ["uh", "um", "erm", "ah", "hmm", "uhh", "umm", "mm", "mhm"]
 
@@ -52,14 +53,16 @@ final class ScriptMatchingService {
 
     init(
         backwardWindow: Int = 20,
-        forwardWindow: Int = 80,
+        forwardWindow: Int = 30,
         tailWordCount: Int = 14,
-        maxBackwardJump: Int = 6
+        maxBackwardJump: Int = 6,
+        maxForwardJump: Int = 20
     ) {
         self.backwardWindow = backwardWindow
         self.forwardWindow = forwardWindow
         self.tailWordCount = tailWordCount
         self.maxBackwardJump = maxBackwardJump
+        self.maxForwardJump = maxForwardJump
     }
 
     func loadScript(_ text: String) {
@@ -103,6 +106,11 @@ final class ScriptMatchingService {
 
         let jump = match.endIndex - currentIndex
         if jump < 0 && -jump > maxBackwardJump { return nil }
+        // A hard ceiling independent of score: even a strong-looking match
+        // shouldn't be allowed to teleport the reading position dozens of
+        // words ahead from a couple of spoken words — that read as the
+        // whole screen suddenly scrolling past unspoken text.
+        if jump > maxForwardJump { return nil }
 
         guard match.score >= Self.requiredScore(forJump: jump) else { return nil }
 
@@ -130,7 +138,7 @@ final class ScriptMatchingService {
         let n = window.count
         let mismatchPenalty = 0.6
         let gapPenalty = 0.8
-        let distanceTiebreak = 0.01
+        let distanceTiebreak = 0.05
 
         // H[i][j]: best local-alignment score using speechTail[0..<i] and window[0..<j].
         var H = [[Double]](repeating: [Double](repeating: 0, count: n + 1), count: m + 1)
@@ -170,7 +178,7 @@ final class ScriptMatchingService {
     /// run of matching words — this is what stops a single common word
     /// echoed near a repeated phrase from teleporting the position there.
     private static func requiredScore(forJump jump: Int) -> Double {
-        1.4 + Double(abs(jump)) * 0.035
+        1.6 + Double(abs(jump)) * 0.09
     }
 
     private static func weight(for word: String) -> Double {

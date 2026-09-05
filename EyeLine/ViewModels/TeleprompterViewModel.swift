@@ -99,7 +99,10 @@ final class TeleprompterViewModel: NSObject {
             scrollOffset += CGFloat(speed * delta)
         case .voiceTracking:
             let diff = voiceTrackingTargetOffset - scrollOffset
-            let easing = min(1, CGFloat(delta) * 6) // ~fully caught up within ~1/6s
+            // Deliberately gentle: catches up over roughly a second rather
+            // than snapping, so a jump reads as a smooth scroll instead of
+            // the screen suddenly cutting to a new position.
+            let easing = min(1, CGFloat(delta) * 1.8)
             scrollOffset += diff * easing
         }
     }
