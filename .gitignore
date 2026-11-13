@@ -19,3 +19,7 @@ DerivedData/
 # CocoaPods / Carthage (unused here, ignored just in case)
 Pods/
 Carthage/Build/
+
+# Local reinstall state and logs
+.last-install
+scripts/reinstall.log
